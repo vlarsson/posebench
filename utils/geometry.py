@@ -1,0 +1,127 @@
+import numpy as np
+
+
+def calibrate_pts(pts, K):
+    pts_calib = pts.copy()
+    pts_calib[:,0] -= K[0,2]
+    pts_calib[:,1] -= K[1,2]
+    pts_calib[:,0] /= K[0,0]
+    pts_calib[:,1] /= K[1,1]
+    return pts_calib
+
+def rotation_angle(R):
+    return np.rad2deg(np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1)))
+
+def angle(v1,v2):
+    # if np.linalg.norm(v1) == 0:
+    #     raise RuntimeError
+    n = np.linalg.norm(v1) * np.linalg.norm(v2)
+    return np.rad2deg(np.arccos(np.clip(np.dot(v1, v2) / n, -1.0, 1.0)))
+
+
+def qvec2rotmat(qvec):
+    return np.array([
+        [1 - 2 * qvec[2]**2 - 2 * qvec[3]**2,
+         2 * qvec[1] * qvec[2] - 2 * qvec[0] * qvec[3],
+         2 * qvec[3] * qvec[1] + 2 * qvec[0] * qvec[2]],
+        [2 * qvec[1] * qvec[2] + 2 * qvec[0] * qvec[3],
+         1 - 2 * qvec[1]**2 - 2 * qvec[3]**2,
+         2 * qvec[2] * qvec[3] - 2 * qvec[0] * qvec[1]],
+        [2 * qvec[3] * qvec[1] - 2 * qvec[0] * qvec[2],
+         2 * qvec[2] * qvec[3] + 2 * qvec[0] * qvec[1],
+         1 - 2 * qvec[1]**2 - 2 * qvec[2]**2]])
+
+
+def essential_from_pose(R,t):
+    t = t.flatten()
+    return np.array([[0, -t[2], t[1]],
+                     [t[2], 0, -t[0]],
+                     [-t[1], t[0], 0]]) @ R
+
+
+def skew(t):
+    t = t.flatten()
+    return np.array([[0, -t[2], t[1]],
+                     [t[2], 0, -t[0]],
+                     [-t[1], t[0], 0]])
+
+def sampson_error(F,x1,x2):
+    num_pts = x1.shape[0]
+    x1h = np.c_[ x1, np.ones(num_pts) ]
+    x2h = np.c_[ x2, np.ones(num_pts) ]
+    Fx1 = F @ x1h.transpose()
+    Fx2 = F.transpose() @ x2h.transpose()
+
+    C = np.sum(x2h.transpose() * Fx1, axis=0)
+    denom = Fx1[0,:]**2 + Fx1[1,:]**2 + Fx2[0,:]**2 + Fx2[1,:]**2
+
+    samp_err = np.abs(C) / np.sqrt(denom)
+    return samp_err
+
+def sym_epipolar_error(F,x1,x2):
+    num_pts = x1.shape[0]
+    x1h = np.c_[ x1, np.ones(num_pts) ]
+    x2h = np.c_[ x2, np.ones(num_pts) ]
+    Fx1 = F @ x1h.transpose()
+    Fx2 = F.transpose() @ x2h.transpose()
+
+    C = np.sum(x2h.transpose() * Fx1, axis=0)
+    denom1 = np.sqrt(Fx1[0,:]**2 + Fx1[1,:]**2)
+    denom2 = np.sqrt(Fx2[0,:]**2 + Fx2[1,:]**2)
+
+    sym_err = np.abs(C) * (1/denom1 + 1/denom2)
+    return sym_err
+
+def check_cheirality(R,t,x1,x2,K1,K2):
+    num_pts = x1.shape[0]
+    x1h = np.c_[ x1, np.ones(num_pts) ]
+    x2h = np.c_[ x2, np.ones(num_pts) ]
+    
+    x1h = np.linalg.inv(K1) @ x1h.transpose()
+    x2h = np.linalg.inv(K2) @ x2h.transpose()
+
+    cheiral_ok = []
+    for i in range(num_pts):
+        z1 = x1h[:,i]
+        z2 = x2h[:,i]
+
+        S1 = np.array([[0, -z1[2], z1[1]],
+                     [z1[2], 0, -z1[0]],
+                     [-z1[1], z1[0], 0]])
+        S2 = np.array([[0, -z2[2], z2[1]],
+                     [z2[2], 0, -z2[0]],
+                     [-z2[1], z2[0], 0]])
+
+        A = np.r_[ np.c_[S1, np.zeros(3)],  S2 @ np.c_[R, t] ]
+
+        U, S, Vh = np.linalg.svd(A, full_matrices=True)
+        X = Vh[-1,0:3].transpose() / Vh[-1,3]
+       
+        cheiral_ok.append(X[2] > 0 and R[2,:] @ X + t[2] > 0)
+
+    return cheiral_ok
+
+
+def triangulate(R,t,x1,x2):
+    num_pts = x1.shape[0]
+    x1h = np.c_[ x1, np.ones(num_pts) ]
+    x2h = np.c_[ x2, np.ones(num_pts) ]
+    X = []
+    for i in range(num_pts):
+        z1 = x1h[i,:]
+        z2 = x2h[i,:]
+
+        S1 = np.array([[0, -z1[2], z1[1]],
+                     [z1[2], 0, -z1[0]],
+                     [-z1[1], z1[0], 0]])
+        S2 = np.array([[0, -z2[2], z2[1]],
+                     [z2[2], 0, -z2[0]],
+                     [-z2[1], z2[0], 0]])
+
+        A = np.r_[ np.c_[S1, np.zeros(3)],  S2 @ np.c_[R, t] ]
+
+        U, S, Vh = np.linalg.svd(A, full_matrices=True)
+        X.append(Vh[-1,0:3].transpose() / Vh[-1,3])
+
+    return np.array(X)
+

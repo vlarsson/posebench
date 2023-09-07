@@ -34,7 +34,8 @@ def eval_pose_estimator(instance):
     threshold = instance['threshold']
 
     opt = {
-        'max_reproj_error': threshold
+        'max_reproj_error': threshold,
+        'max_iterations': 10
     }
 
     tt1 = datetime.datetime.now()

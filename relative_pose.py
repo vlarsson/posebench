@@ -32,7 +32,7 @@ def eval_essential_estimator(instance):
 
     opt = {
         'max_epipolar_error': threshold,
-        'max_iterations': 100
+        'max_iterations': 10
     }
 
     tt1 = datetime.datetime.now()
@@ -166,5 +166,5 @@ def main(dataset_path='data/relative', datasets=None):
 
 if __name__ == '__main__':
     metrics, _ = main()
-    posebench.print_metrics(metrics)
+    posebench.print_metrics_per_dataset(metrics)
     # TODO print results

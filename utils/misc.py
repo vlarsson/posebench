@@ -20,7 +20,7 @@ def calib_matrix_to_camera_dict(K):
 
 
 # From Paul
-def pose_auc(errors, thresholds):
+def compute_auc(errors, thresholds):
     sort_idx = np.argsort(errors)
     errors = np.array(errors.copy())[sort_idx]
     recall = (np.arange(len(errors)) + 1) / len(errors)
@@ -36,7 +36,7 @@ def pose_auc(errors, thresholds):
 
 
 # From Mihai
-def compute_auc(method, errors, thresholds=[0.001, 0.01, 0.1], verbose=True, outfile=None):
+def compute_auc_mihai(method, errors, thresholds=[0.001, 0.01, 0.1], verbose=True, outfile=None):
     n_images = len(errors)
     errors = np.sort(errors)
     if verbose:

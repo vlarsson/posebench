@@ -2,7 +2,7 @@ import numpy as np
 import datetime
 import absolute_pose
 import relative_pose
-
+import homography
 
 def format_metric(name, value):
     if 'AUC' in name:
@@ -57,7 +57,8 @@ def compute_average_metrics(metrics):
 if __name__ == '__main__':
     problems = {
         'absolute pose': absolute_pose.main,
-        #'relative pose': relative_pose.main,
+        'relative pose': relative_pose.main,
+        'homography': homography.main,
     }
     start_time = datetime.datetime.now()
     compiled_metrics = []

@@ -125,3 +125,85 @@ def triangulate(R,t,x1,x2):
 
     return np.array(X)
 
+# Code from Daniel
+# https://github.com/danini/homography-benchmark/blob/main/errors.py
+def decompose_homography(homography):
+    u, s, vt = np.linalg.svd(homography)
+
+    H2 = homography / s[1]
+    
+    U2, S2, Vt2 = np.linalg.svd(H2.T @ H2)
+    V2 = Vt2.T
+
+    if np.linalg.det(V2) < 0:
+        V2 *= -1
+
+    s1 = S2[0]
+    s3 = S2[2]
+
+    v1 = V2[:,0]
+    v2 = V2[:,1]
+    v3 = V2[:,2]
+
+    if abs(s1 - s3) < 1e-14:
+        return 0, [], [], []
+
+    # compute orthogonal unit vectors
+    u1 = (math.sqrt(1.0 - s3) * v1 + math.sqrt(s1 - 1.0) * v3) / math.sqrt(s1 - s3)
+    u2 = (math.sqrt(1.0 - s3) * v1 - math.sqrt(s1 - 1.0) * v3) / math.sqrt(s1 - s3)
+
+    U1 = np.zeros((3,3)) 
+    W1 = np.zeros((3,3)) 
+    U2 = np.zeros((3,3)) 
+    W2 = np.zeros((3,3)) 
+
+    U1[:,0] = v2
+    U1[:,1] = u1
+    U1[:,2] = np.cross(v2, u1)
+
+    W1[:,0] = H2 @ v2
+    W1[:,1] = H2 @ u1
+    W1[:,2] = np.cross(H2 @ v2, H2 @ u1)
+
+    U2[:,0] = v2
+    U2[:,1] = u2
+    U2[:,2] = np.cross(v2, u2)
+
+    W2[:,0] = H2 @ v2
+    W2[:,1] = H2 @ u2
+    W2[:,2] = np.cross(H2 @ v2, H2 @ u2)
+
+    # compute the rotation matrices
+    R1 = W1 @ U1.T
+    R2 = W2 @ U2.T
+
+    # build the solutions, discard those with negative plane normals
+    # Compare to the original code, we do not invert the transformation.
+    # Furthermore, we multiply t with -1.
+    Rs = []
+    ts = []
+    ns = []
+    
+    n = np.cross(v2, u1)
+    ns.append(n)
+    Rs.append(R1)
+    t = -(H2 - R1) @ n
+    ts.append(t)
+
+    ns.append(-n)
+    t = (H2 - R1) @ n
+    Rs.append(R1)
+    ts.append(t)
+
+    n = np.cross(v2, u2)
+    ns.append(n)
+    t = -(H2 - R2) @ n
+    Rs.append(R2)
+    ts.append(t)
+
+    ns.append(-n)
+    t = (H2 - R2) @ n
+    ts.append(t)
+    Rs.append(R2)
+
+    return 1, Rs, ts, ns

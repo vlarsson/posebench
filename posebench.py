@@ -57,22 +57,23 @@ def compute_average_metrics(metrics):
 if __name__ == '__main__':
     problems = {
         'absolute pose': absolute_pose.main,
-        'relative pose': relative_pose.main,
+        #'relative pose': relative_pose.main,
     }
     start_time = datetime.datetime.now()
     compiled_metrics = []
-    num_datasets = []
+    dataset_names = []
     for name, problem in problems.items():
         print(f'Running problem {name}')
         metrics, _ = problem()
 
         avg_metrics = compute_average_metrics(metrics)
         compiled_metrics.append(avg_metrics)
-        num_datasets.append(len(metrics))
+        dataset_names += metrics.keys()
 
     end_time = datetime.datetime.now()
     total_time = (end_time - start_time).total_seconds()
-    print(f'Finished running evaluation in {total_time:.1f} seconds ({np.sum(num_datasets)} datasets)')
+    print(f'Finished running evaluation in {total_time:.1f} seconds ({len(dataset_names)} datasets)')
+    print('Datasets: ' + (','.join(dataset_names)) + '\n')
 
     # Output all the average metrics
     for avg_metrics in compiled_metrics:

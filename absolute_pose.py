@@ -27,7 +27,7 @@ def compute_metrics(results, thresholds = [0.1, 1.0, 5.0]):
     return metrics
 
 
-def eval_pose_estimator(instance):
+def eval_pnp_estimator(instance):
     points2D = instance['p2d']
     points3D = instance['p3d']
     cam = instance['cam']
@@ -35,7 +35,7 @@ def eval_pose_estimator(instance):
 
     opt = {
         'max_reproj_error': threshold,
-        'max_iterations': 10
+        'max_iterations': 1000
     }
 
     tt1 = datetime.datetime.now()
@@ -50,19 +50,21 @@ def eval_pose_estimator(instance):
     return [err_R, err_c], (tt2-tt1).total_seconds()
 
 
-def eval_pointline_pose_estimator(instance):
+def eval_pnpl_estimator(instance):
     points2D = instance['p2d']
     points3D = instance['p3d']
+    lines2D = instance['l2d']
+    lines3D = instance['l3d']
+    
     cam = instance['cam']
     threshold = instance['threshold']
 
     opt = {
-        'max_reproj_error': threshold
+        'max_reproj_error': threshold,
+        'max_iterations': 1000
     }
-
     tt1 = datetime.datetime.now()
-    # TODO update
-    pose, info = poselib.estimate_absolute_pose(points2D, points3D, cam, opt, {})
+    pose, info = poselib.estimate_absolute_pose_pnpl(points2D, points3D, lines2D[:,0:2], lines2D[:,2:4], lines3D[:,0:3], lines3D[:,3:6], cam, opt, {})
     tt2 = datetime.datetime.now()
 
     R_gt = instance['R']
@@ -89,7 +91,8 @@ def main(dataset_path='data/absolute', datasets=None):
         ]
 
     evaluators = {
-        'PnP': eval_pose_estimator,
+        'PnP': eval_pnp_estimator,
+        'PnPL': eval_pnpl_estimator,
     }
 
     metrics = {}
@@ -119,8 +122,8 @@ def main(dataset_path='data/absolute', datasets=None):
                 instance['l2d'] = v['l2d'][:]
                 instance['l3d'] = v['l3d'][:]
             else:
-                instance['l2d'] = np.zeros((4,0))
-                instance['l3d'] = np.zeros((6,0))
+                instance['l2d'] = np.zeros((0,4))
+                instance['l3d'] = np.zeros((0,6))
                 
             # Run each of the evaluators 
             for name, fcn in evaluators.items():
@@ -136,7 +139,7 @@ def main(dataset_path='data/absolute', datasets=None):
 
 if __name__ == '__main__':
     metrics, _ = main()
-    posebench.print_metrics(metrics)
+    posebench.print_metrics_per_dataset(metrics)
     # TODO print results
     import ipdb
     ipdb.set_trace()

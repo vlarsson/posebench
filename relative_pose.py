@@ -26,8 +26,9 @@ def compute_metrics(results, thresholds = [5.0, 10.0, 20.0]):
 def eval_essential_estimator(instance):
     x1 = instance['x1']
     x2 = instance['x2']
-    cam1 = calib_matrix_to_camera_dict(instance['K1'])
-    cam2 = calib_matrix_to_camera_dict(instance['K2'])
+    cam1 = instance['cam1']
+    cam2 = instance['cam2']
+
     threshold = instance['threshold']
 
     opt = {
@@ -54,14 +55,13 @@ def eval_essential_refinement(instance):
     K2 = instance['K2']
     cam1 = instance['cam1']
     cam2 = instance['cam2']
-
-
     
     R_gt = instance['R']
     t_gt = instance['t']
     E_gt = essential_from_pose(R_gt, t_gt)
     F_gt = np.linalg.inv(K2.T) @ E_gt @ np.linalg.inv(K1)
     samp_err = sampson_error(F_gt, x1, x2)
+    # TODO compute tangent sampson error here
 
     threshold = instance['threshold']
     inl = samp_err < threshold
@@ -111,6 +111,8 @@ def eval_fundamental_refinement(instance):
 def main(dataset_path='data/relative', datasets=None):
     if datasets is None:
         datasets = [
+            'fisheye_grossmunster_4342',
+            'fisheye_kirchenge_2731',
             'scannet1500_sift',
             'scannet1500_spsg',
             'imc_british_museum',
@@ -126,7 +128,7 @@ def main(dataset_path='data/relative', datasets=None):
 
     evaluators = {
         'E': eval_essential_estimator,
-        'E+Ref': eval_essential_refinement,
+        #'E+Ref': eval_essential_refinement,
         #'Fundamental': eval_fundamental_estimator,
         #'Fundamental (Ref)': eval_fundamental_refinement,
     }
@@ -147,8 +149,6 @@ def main(dataset_path='data/relative', datasets=None):
             instance = {
                 'x1': v['x1'][:],
                 'x2': v['x2'][:],
-                'K1': v['K1'][:],
-                'K2': v['K2'][:],
                 'cam1': h5_to_camera_dict(v['camera1']),
                 'cam2': h5_to_camera_dict(v['camera2']),
                 'R': v['R'][:],

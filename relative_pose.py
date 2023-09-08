@@ -111,19 +111,19 @@ def eval_fundamental_refinement(instance):
 def main(dataset_path='data/relative', datasets=None):
     if datasets is None:
         datasets = [
-            'fisheye_grossmunster_4342',
-            'fisheye_kirchenge_2731',
-            'scannet1500_sift',
-            'scannet1500_spsg',
-            'imc_british_museum',
-            'imc_london_bridge',
-            'imc_piazza_san_marco',
-            'imc_florence_cathedral_side',
-            'imc_milan_cathedral',
-            'imc_sagrada_familia',
-            'imc_lincoln_memorial_statue',
-            'imc_mount_rushmore',
-            'imc_st_pauls_cathedral'
+            ('fisheye_grossmunster_4342', 1.0),
+            ('fisheye_kirchenge_2731', 1.0),
+            ('scannet1500_sift', 1.5),
+            ('scannet1500_spsg', 1.5),
+            ('imc_british_museum', 0.75),
+            ('imc_london_bridge', 0.75),
+            ('imc_piazza_san_marco', 0.75),
+            ('imc_florence_cathedral_side', 0.75),
+            ('imc_milan_cathedral', 0.75),
+            ('imc_sagrada_familia', 0.75),
+            ('imc_lincoln_memorial_statue', 0.75),
+            ('imc_mount_rushmore', 0.75),
+            ('imc_st_pauls_cathedral', 0.75)
         ]
 
     evaluators = {
@@ -135,7 +135,7 @@ def main(dataset_path='data/relative', datasets=None):
     
     metrics = {}
     full_results = {}
-    for dataset in datasets:
+    for (dataset, threshold) in datasets:
         f = h5py.File(f'{dataset_path}/{dataset}.h5', 'r')
 
         results = {}
@@ -153,7 +153,7 @@ def main(dataset_path='data/relative', datasets=None):
                 'cam2': h5_to_camera_dict(v['camera2']),
                 'R': v['R'][:],
                 't': v['t'][:],
-                'threshold': 1.0    
+                'threshold': threshold   
             }
 
             for name, fcn in evaluators.items():

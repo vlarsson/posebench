@@ -37,7 +37,6 @@ def eval_pnp_estimator(instance):
         'max_reproj_error': threshold,
         'max_iterations': 1000
     }
-
     tt1 = datetime.datetime.now()
     pose, info = poselib.estimate_absolute_pose(points2D, points3D, cam, opt, {})
     tt2 = datetime.datetime.now()
@@ -63,6 +62,7 @@ def eval_pnpl_estimator(instance):
         'max_reproj_error': threshold,
         'max_iterations': 1000
     }
+   
     tt1 = datetime.datetime.now()
     pose, info = poselib.estimate_absolute_pose_pnpl(points2D, points3D, lines2D[:,0:2], lines2D[:,2:4], lines3D[:,0:3], lines3D[:,3:6], cam, opt, {})
     tt2 = datetime.datetime.now()
@@ -80,14 +80,14 @@ def eval_pnpl_estimator(instance):
 def main(dataset_path='data/absolute', datasets=None):
     if datasets is None:
         datasets = [
-            'eth3d_130_dusmanu',
-            '7scenes_heads',
-            '7scenes_stairs',
-            'cambridge_landmarks_GreatCourt',
-            'cambridge_landmarks_ShopFacade',
-            'cambridge_landmarks_KingsCollege',
-            'cambridge_landmarks_StMarysChurch',
-            'cambridge_landmarks_OldHospital'
+            ('eth3d_130_dusmanu', 12.0),
+            ('7scenes_heads', 5.0),
+            ('7scenes_stairs', 5.0),
+            ('cambridge_landmarks_GreatCourt', 6.0),
+            ('cambridge_landmarks_ShopFacade', 6.0),
+            ('cambridge_landmarks_KingsCollege', 6.0),
+            ('cambridge_landmarks_StMarysChurch', 6.0),
+            ('cambridge_landmarks_OldHospital', 6.0)
         ]
 
     evaluators = {
@@ -97,7 +97,7 @@ def main(dataset_path='data/absolute', datasets=None):
 
     metrics = {}
     full_results = {}
-    for dataset in datasets:
+    for (dataset, threshold) in datasets:
         f = h5py.File(f'{dataset_path}/{dataset}.h5', 'r')
 
         results = {}
@@ -114,7 +114,7 @@ def main(dataset_path='data/absolute', datasets=None):
                 'cam': h5_to_camera_dict(v['camera']),
                 'R': v['R'][:],
                 't': v['t'][:],
-                'threshold': 12.0    
+                'threshold': threshold    
             }
 
             # Check if we have 2D-3D line correspondences

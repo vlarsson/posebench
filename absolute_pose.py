@@ -27,57 +27,37 @@ def compute_metrics(results, thresholds = [0.1, 1.0, 5.0]):
     return metrics
 
 
-def eval_pnp_estimator(instance):
-    points2D = instance['p2d']
-    points3D = instance['p3d']
-    cam = instance['cam']
-    threshold = instance['threshold']
+def eval_pnp_estimator(instance, estimator='poselib_pnp'):
+    opt = instance['opt']
 
-    opt = {
-        'max_reproj_error': threshold,
-        'max_iterations': 1000
-    }
-    tt1 = datetime.datetime.now()
-    pose, info = poselib.estimate_absolute_pose(points2D, points3D, cam, opt, {})
-    tt2 = datetime.datetime.now()
+    if estimator == 'poselib_pnp':
+        tt1 = datetime.datetime.now()
+        pose, info = poselib.estimate_absolute_pose(instance['p2d'], instance['p3d'], instance['cam'], opt, {})
+        tt2 = datetime.datetime.now()
+        (R,t) = (pose.R, pose.t)
+    if estimator == 'poselib_pnpl':
+        tt1 = datetime.datetime.now()
+        pose, info = poselib.estimate_absolute_pose_pnpl(instance['p2d'], instance['p3d'], instance['l2d'][:,0:2], instance['l2d'][:,2:4], instance['l3d'][:,0:3], instance['l3d'][:,3:6], instance['cam'], opt, {})
+        tt2 = datetime.datetime.now()
+        (R,t) = (pose.R, pose.t)
+         
+    elif estimator == 'pycolmap':
+        opt = poselib_opt_to_pycolmap_opt(opt)
+        tt1 = datetime.datetime.now()
 
-    R_gt = instance['R']
-    t_gt = instance['t']
+        result = pycolmap.absolute_pose_estimation(instance['p2d'], instance['p3d'], instance['cam'],
+                opt.max_error, opt.min_inlier_ratio, opt.min_num_trials, opt.max_num_trials, opt.confidence)
+        tt2 = datetime.datetime.now()
+        R = qvec2rotmat(result['qvec'])
+        t = result['tvec']
 
-    err_R = rotation_angle(R_gt @ pose.R.T)
-    err_c = np.linalg.norm(R_gt.T @ t_gt - pose.R.T @ pose.t)
-    return [err_R, err_c], (tt2-tt1).total_seconds()
-
-
-def eval_pnpl_estimator(instance):
-    points2D = instance['p2d']
-    points3D = instance['p3d']
-    lines2D = instance['l2d']
-    lines3D = instance['l3d']
-    
-    cam = instance['cam']
-    threshold = instance['threshold']
-
-    opt = {
-        'max_reproj_error': threshold,
-        'max_iterations': 1000
-    }
-   
-    tt1 = datetime.datetime.now()
-    pose, info = poselib.estimate_absolute_pose_pnpl(points2D, points3D, lines2D[:,0:2], lines2D[:,2:4], lines3D[:,0:3], lines3D[:,3:6], cam, opt, {})
-    tt2 = datetime.datetime.now()
-
-    R_gt = instance['R']
-    t_gt = instance['t']
-
-    err_R = rotation_angle(R_gt @ pose.R.T)
-    err_c = np.linalg.norm(R_gt.T @ t_gt - pose.R.T @ pose.t)
+    err_R = rotation_angle(instance['R'] @ R.T)
+    err_c = np.linalg.norm(instance['R'].T @ instance['t'] - R.T @ t)
     return [err_R, err_c], (tt2-tt1).total_seconds()
 
 
 
-
-def main(dataset_path='data/absolute', datasets=None):
+def main(dataset_path='data/absolute', datasets=None, force_opt = {}):
     if datasets is None:
         datasets = [
             ('eth3d_130_dusmanu', 12.0),
@@ -91,8 +71,9 @@ def main(dataset_path='data/absolute', datasets=None):
         ]
 
     evaluators = {
-        'PnP': eval_pnp_estimator,
-        'PnPL': eval_pnpl_estimator,
+        'PnP (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnp'),
+        'PnP (COLMAP)': lambda i: eval_pnp_estimator(i, estimator='pycolmap'),
+        'PnPL (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnpl')
     }
 
     metrics = {}
@@ -107,6 +88,19 @@ def main(dataset_path='data/absolute', datasets=None):
                 'runtime': []
             }
 
+        # RANSAC options
+        opt = {
+            'max_reproj_error': threshold,
+            'max_epipolar_error': threshold,
+            'max_iterations': 10000,
+            'min_iterations': 100,
+            'success_prob': 0.9999
+        }
+
+        # Add in global overrides
+        for k, v in force_opt.items():
+            opt[k] = v
+
         for k, v in tqdm(f.items(), desc=dataset):
             instance = {
                 'p2d': v['p2d'][:],
@@ -114,8 +108,11 @@ def main(dataset_path='data/absolute', datasets=None):
                 'cam': h5_to_camera_dict(v['camera']),
                 'R': v['R'][:],
                 't': v['t'][:],
-                'threshold': threshold    
+                'threshold': threshold,
+                'opt': opt  
             }
+
+            
 
             # Check if we have 2D-3D line correspondences
             if 'l2d' in v:
@@ -138,8 +135,6 @@ def main(dataset_path='data/absolute', datasets=None):
     return metrics, full_results
 
 if __name__ == '__main__':
-    metrics, _ = main()
+    force_opt = posebench.parse_args()
+    metrics, _ = main(force_opt=force_opt)
     posebench.print_metrics_per_dataset(metrics)
-    # TODO print results
-    import ipdb
-    ipdb.set_trace()

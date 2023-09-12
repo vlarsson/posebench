@@ -13,10 +13,12 @@ def rotation_angle(R):
     return np.rad2deg(np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1)))
 
 def angle(v1,v2):
+    v1s = np.squeeze(v1)
+    v2s = np.squeeze(v2)
     # if np.linalg.norm(v1) == 0:
     #     raise RuntimeError
-    n = np.linalg.norm(v1) * np.linalg.norm(v2)
-    return np.rad2deg(np.arccos(np.clip(np.dot(v1, v2) / n, -1.0, 1.0)))
+    n = np.linalg.norm(v1s) * np.linalg.norm(v2s)
+    return np.rad2deg(np.arccos(np.clip(np.dot(v1s, v2s) / n, -1.0, 1.0)))
 
 
 def qvec2rotmat(qvec):

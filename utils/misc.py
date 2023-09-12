@@ -1,11 +1,30 @@
 import numpy as np
 import h5py
+import pycolmap
+
+def poselib_opt_to_pycolmap_opt(opt):
+    pyc_opt = pycolmap.RANSACOptions()
+
+    if 'max_reproj_error' in opt:
+        pyc_opt.max_error = opt['max_reproj_error']
+    elif 'max_epipolar_error' in opt:
+        pyc_opt.max_error = opt['max_epipolar_error']
+
+    if 'max_iterations' in opt:
+        pyc_opt.max_num_trials = opt['max_iterations']
+    if 'min_iterations' in opt:
+        pyc_opt.min_num_trials = opt['max_iterations']
+
+    if 'success_prob' in opt:
+        pyc_opt.confidence = opt['success_prob']
+
+    return pyc_opt
 
 def h5_to_camera_dict(data):
     camera_dict = {}
     camera_dict['model'] = data['model'].asstr()[0]
-    camera_dict['width'] = data['width'][0]
-    camera_dict['height'] = data['height'][0]
+    camera_dict['width'] = int(data['width'][0])
+    camera_dict['height'] = int(data['height'][0])
     camera_dict['params'] =data['params'][:]
     return camera_dict
 
@@ -18,6 +37,13 @@ def calib_matrix_to_camera_dict(K):
     camera_dict['params'] = [K[0,0], K[1,1], K[0,2], K[1,2]]
     return camera_dict
 
+def camera_dict_to_calib_matrix(cam):
+    if cam['model'] == 'PINHOLE':
+        p = cam['params']
+        return np.array([[p[0], 0.0, p[2]], [0.0, p[1], p[3]], [0.0, 0.0, 1.0]])
+    else:
+        raise Exception('nyi model in camera_dict_to_calib_matrix')
+        
 
 # From Paul
 def compute_auc(errors, thresholds):

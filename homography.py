@@ -5,6 +5,7 @@ from utils.misc import *
 import poselib
 import datetime
 import posebench
+import cv2
 from tqdm import tqdm
 
 # Compute metrics for homography estimation
@@ -23,33 +24,44 @@ def compute_metrics(results, thresholds = [5.0, 10.0, 20.0]):
 
     return metrics
 
-def eval_homography_estimator(instance):
-    x1 = instance['x1']
-    x2 = instance['x2']
-    cam1 = instance['cam1']
-    cam2 = instance['cam2']
-
+def eval_homography_estimator(instance, estimator='poselib'):
+    opt = instance['opt']
     threshold = instance['threshold']
 
-    opt = {
-        'max_epipolar_error': threshold,
-        'max_iterations': 1000
-    }
+    if estimator == 'poselib':
+        tt1 = datetime.datetime.now()
+        H, info = poselib.estimate_homography(instance['x1'], instance['x2'], opt, {})
+        tt2 = datetime.datetime.now()
+    elif estimator == 'pycolmap':
+        opt = poselib_opt_to_pycolmap_opt(opt)
+        tt1 = datetime.datetime.now()
+        result = pycolmap.homography_matrix_estimation(instance['x1'], instance['x2'], opt)
+        tt2 = datetime.datetime.now()
+        H = result['H']
 
-    # TODO Update to homography estimation + factorization
-    tt1 = datetime.datetime.now()
-    pose, info = poselib.estimate_relative_pose(x1, x2, cam1, cam2, opt, {})
-    tt2 = datetime.datetime.now()
+    K1 = camera_dict_to_calib_matrix(instance['cam1'])
+    K2 = camera_dict_to_calib_matrix(instance['cam2'])
+    Hnorm = np.linalg.inv(K2) @ H @ K1
 
-    R_gt = instance['R']
-    t_gt = instance['t']
+    _, rotations, translations, _ = cv2.decomposeHomographyMat(Hnorm, np.identity(3))
 
-    err_R = rotation_angle(R_gt @ pose.R.T)
-    err_t = angle(t_gt, pose.t)
+    best_err_R = 180.0
+    best_err_t = 180.0
 
-    return [err_R, err_t], (tt2-tt1).total_seconds()
+    for k in range(len(rotations)):
+        R = rotations[k]
+        t = translations[k][:,0]
 
-def main(dataset_path='data/homography', datasets=None):
+        err_R = rotation_angle(instance['R'] @ R.T)
+        err_t = angle(instance['t'], t)
+
+        if err_R + err_t < best_err_R + best_err_t:
+            best_err_R = err_R
+            best_err_t = err_t
+    
+    return [best_err_R, best_err_t], (tt2-tt1).total_seconds()
+
+def main(dataset_path='data/homography', datasets=None, force_opt = {}):
     if datasets is None:
         datasets = [
             ('barath_Alamo', 1.0),
@@ -57,7 +69,8 @@ def main(dataset_path='data/homography', datasets=None):
         ]
 
     evaluators = {
-        'H': eval_homography_estimator,
+        'H (poselib)': lambda i: eval_homography_estimator(i, estimator='poselib'),
+        'H (COLMAP)': lambda i: eval_homography_estimator(i, estimator='pycolmap'),
     }
     
     metrics = {}
@@ -72,7 +85,26 @@ def main(dataset_path='data/homography', datasets=None):
                 'runtime': []
             }
 
-        for k, v in tqdm(f.items(), desc=dataset):
+        # RANSAC options
+        opt = {
+            'max_reproj_error': threshold,
+            'max_epipolar_error': threshold,
+            'max_iterations': 10000,
+            'min_iterations': 100,
+            'success_prob': 0.9999
+        }
+
+        # Add in global overrides
+        for k, v in force_opt.items():
+            opt[k] = v
+
+        # Since the datasets are so large we only take the first 1k pairs
+        pairs = list(f.keys())
+        if len(pairs) > 1000:
+            pairs = pairs[0:1000]
+
+        for k in tqdm(pairs, desc=dataset):
+            v = f[k]
             instance = {
                 'x1': v['x1'][:],
                 'x2': v['x2'][:],
@@ -80,7 +112,8 @@ def main(dataset_path='data/homography', datasets=None):
                 'cam2': h5_to_camera_dict(v['camera2']),
                 'R': v['R'][:],
                 't': v['t'][:],
-                'threshold': threshold   
+                'threshold': threshold,
+                'opt': opt
             }
 
             for name, fcn in evaluators.items():
@@ -92,6 +125,6 @@ def main(dataset_path='data/homography', datasets=None):
     return metrics, full_results
 
 if __name__ == '__main__':
-    metrics, _ = main()
+    force_opt = posebench.parse_args()
+    metrics, _ = main(force_opt=force_opt)
     posebench.print_metrics_per_dataset(metrics)
-    # TODO print results

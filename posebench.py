@@ -3,6 +3,18 @@ import datetime
 import absolute_pose
 import relative_pose
 import homography
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--min_iterations', required=False, type=int)
+    parser.add_argument('--max_iterations', required=False, type=int)
+    parser.add_argument('--success_prob', required=False, type=float)
+    args = parser.parse_args()
+    args = vars(args)
+    args = { k:v for (k,v) in args.items() if v is not None}
+    return args
+
 
 def format_metric(name, value):
     if 'AUC' in name:
@@ -25,7 +37,7 @@ def format_metric(name, value):
 
 def print_metrics_per_method(metrics):
     for name, res in metrics.items():
-        s = f'{name:10s}: '
+        s = f'{name:13s}: '
         for metric_name, value in res.items():
             s = s + format_metric(metric_name,value) + ', '
         s = s[0:-2]
@@ -55,6 +67,7 @@ def compute_average_metrics(metrics):
     return avg_metrics
 
 if __name__ == '__main__':
+    force_opt = parse_args()
     problems = {
         'absolute pose': absolute_pose.main,
         'relative pose': relative_pose.main,
@@ -65,7 +78,7 @@ if __name__ == '__main__':
     dataset_names = []
     for name, problem in problems.items():
         print(f'Running problem {name}')
-        metrics, _ = problem()
+        metrics, _ = problem(force_opt = force_opt)
 
         avg_metrics = compute_average_metrics(metrics)
         compiled_metrics.append(avg_metrics)

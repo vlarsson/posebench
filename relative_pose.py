@@ -3,9 +3,12 @@ import numpy as np
 from utils.geometry import *
 from utils.misc import *
 import poselib
+import pycolmap
 import datetime
 import posebench
+import cv2
 from tqdm import tqdm
+import argparse
 
 # Compute metrics for relative pose estimation
 # AUC for max(err_R,err_t) and avg/med for runtime
@@ -23,36 +26,31 @@ def compute_metrics(results, thresholds = [5.0, 10.0, 20.0]):
 
     return metrics
 
-def eval_essential_estimator(instance):
-    x1 = instance['x1']
-    x2 = instance['x2']
-    cam1 = instance['cam1']
-    cam2 = instance['cam2']
+def eval_essential_estimator(instance, estimator='poselib'):
+    opt = instance['opt']
+    if estimator == 'poselib':
+        tt1 = datetime.datetime.now()
+        pose, info = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt, {})
+        tt2 = datetime.datetime.now()
+        (R,t) = (pose.R, pose.t)
+    elif estimator == 'pycolmap':
+        opt = poselib_opt_to_pycolmap_opt(opt)
+        tt1 = datetime.datetime.now()
+        result = pycolmap.essential_matrix_estimation(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt)
+        tt2 = datetime.datetime.now()
+        R = qvec2rotmat(result['qvec'])
+        t = result['tvec']
+    else:
+        raise Exception('nyi')
 
-    threshold = instance['threshold']
-
-    opt = {
-        'max_epipolar_error': threshold,
-        'max_iterations': 10
-    }
-
-    tt1 = datetime.datetime.now()
-    pose, info = poselib.estimate_relative_pose(x1, x2, cam1, cam2, opt, {})
-    tt2 = datetime.datetime.now()
-
-    R_gt = instance['R']
-    t_gt = instance['t']
-
-    err_R = rotation_angle(R_gt @ pose.R.T)
-    err_t = angle(t_gt, pose.t)
+    err_R = rotation_angle(instance['R'] @ R.T)
+    err_t = angle(instance['t'], t)
 
     return [err_R, err_t], (tt2-tt1).total_seconds()
 
 def eval_essential_refinement(instance):
     x1 = instance['x1']
     x2 = instance['x2']
-    K1 = instance['K1']
-    K2 = instance['K2']
     cam1 = instance['cam1']
     cam2 = instance['cam2']
     
@@ -80,39 +78,54 @@ def eval_essential_refinement(instance):
     return [err_R, err_t], (tt2-tt1).total_seconds()
 
 
-def eval_fundamental_estimator(instance):
-    x1 = instance['x1']
-    x2 = instance['x2']
-    K1 = instance['K1']
-    K2 = instance['K2']
-    threshold = instance['threshold']
-    opt = {
-        'max_epipolar_error': threshold
-    }
+def eval_fundamental_estimator(instance, estimator='poselib'):
+    opt = instance['opt']
+    if estimator == 'poselib':
+        tt1 = datetime.datetime.now()
+        F, info = poselib.estimate_fundamental(instance['x1'], instance['x2'], opt, {})
+        tt2 = datetime.datetime.now()
+        inl = info['inliers']
+    elif estimator == 'pycolmap':
+        opt = poselib_opt_to_pycolmap_opt(opt)
+        tt1 = datetime.datetime.now()
+        result = pycolmap.fundamental_matrix_estimation(instance['x1'], instance['x2'], opt)
+        tt2 = datetime.datetime.now()
+        if 'F' not in result:
+            return [180.0, 180.0], (tt2-tt1).total_seconds()
+        F = result['F']
+        inl = result['inliers']
+    else:
+        raise Exception('nyi')
 
-    tt1 = datetime.datetime.now()
-    F, info = poselib.estimate_fundamental_matrix(x1, x2, opt, {})
-    tt2 = datetime.datetime.now()
 
     R_gt = instance['R']
     t_gt = instance['t']
+    K1 = camera_dict_to_calib_matrix(instance['cam1'])
+    K2 = camera_dict_to_calib_matrix(instance['cam2'])
+    if np.sum(inl) < 5:
+        return [180.0, 180.0], (tt2-tt1).total_seconds()
 
-    # TODO factorize essential matrix
+    E = K2.T @ F @ K1
+    x1i = calibrate_pts(instance['x1'][inl], K1)
+    x2i = calibrate_pts(instance['x2'][inl], K2)
 
-    err_R = rotation_angle(R_gt @ pose.R.T)
-    err_t = angle(t_gt, pose.t)
+    _, R, t, good = cv2.recoverPose(E, x1i, x2i)
+    err_R = rotation_angle(instance['R'] @ R.T)
+    err_t = angle(instance['t'], t)
 
     return [err_R, err_t], (tt2-tt1).total_seconds()
+
+
 
 def eval_fundamental_refinement(instance):
     return [0.0], 0.0
 
 
-def main(dataset_path='data/relative', datasets=None):
+def main(dataset_path='data/relative', datasets=None, force_opt = {}):
     if datasets is None:
         datasets = [
-            ('fisheye_grossmunster_4342', 1.0),
-            ('fisheye_kirchenge_2731', 1.0),
+            #('fisheye_grossmunster_4342', 1.0),
+            #('fisheye_kirchenge_2731', 1.0),
             ('scannet1500_sift', 1.5),
             ('scannet1500_spsg', 1.5),
             ('imc_british_museum', 0.75),
@@ -127,16 +140,29 @@ def main(dataset_path='data/relative', datasets=None):
         ]
 
     evaluators = {
-        'E': eval_essential_estimator,
-        #'E+Ref': eval_essential_refinement,
-        #'Fundamental': eval_fundamental_estimator,
-        #'Fundamental (Ref)': eval_fundamental_refinement,
+        'E (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib'),
+        'E (COLMAP)': lambda i: eval_essential_estimator(i, estimator='pycolmap'),
+        'F (poselib)': lambda i: eval_fundamental_estimator(i, estimator='poselib'),
+        'F (COLMAP)': lambda i: eval_fundamental_estimator(i, estimator='pycolmap'),
     }
+
+    
     
     metrics = {}
     full_results = {}
     for (dataset, threshold) in datasets:
         f = h5py.File(f'{dataset_path}/{dataset}.h5', 'r')
+
+        opt = {
+            'max_reproj_error': threshold,
+            'max_epipolar_error': threshold,
+            'max_iterations': 10000,
+            'min_iterations': 100,
+            'success_prob': 0.9999
+        }
+
+        for k, v in force_opt.items():
+            opt[k] = v
 
         results = {}
         for k in evaluators.keys():
@@ -153,7 +179,8 @@ def main(dataset_path='data/relative', datasets=None):
                 'cam2': h5_to_camera_dict(v['camera2']),
                 'R': v['R'][:],
                 't': v['t'][:],
-                'threshold': threshold   
+                'threshold': threshold,
+                'opt': opt
             }
 
             for name, fcn in evaluators.items():
@@ -165,6 +192,6 @@ def main(dataset_path='data/relative', datasets=None):
     return metrics, full_results
 
 if __name__ == '__main__':
-    metrics, _ = main()
+    force_opt = posebench.parse_args()
+    metrics, _ = main(force_opt=force_opt)
     posebench.print_metrics_per_dataset(metrics)
-    # TODO print results

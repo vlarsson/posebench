@@ -16,3 +16,8 @@ sh download_data.sh
 ```
 
 in the root folder.
+
+## TODO
+
+* Add missing estimators (multi-camera, hybrid, etc.)
+* Add refinement benchmark

@@ -156,7 +156,7 @@ def main(dataset_path='data/relative', datasets=None, force_opt = {}):
         opt = {
             'max_reproj_error': threshold,
             'max_epipolar_error': threshold,
-            'max_iterations': 10000,
+            'max_iterations': 1000,
             'min_iterations': 100,
             'success_prob': 0.9999
         }

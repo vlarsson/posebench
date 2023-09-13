@@ -2,6 +2,9 @@ import numpy as np
 import h5py
 import pycolmap
 
+def substr_in_list(s, lst):
+    return np.any([s.find(t) >= 0 for t in lst])
+
 def poselib_opt_to_pycolmap_opt(opt):
     pyc_opt = pycolmap.RANSACOptions()
 

@@ -57,24 +57,29 @@ def eval_pnp_estimator(instance, estimator='poselib_pnp'):
 
 
 
-def main(dataset_path='data/absolute', datasets=None, force_opt = {}):
-    if datasets is None:
-        datasets = [
-            ('eth3d_130_dusmanu', 12.0),
-            ('7scenes_heads', 5.0),
-            ('7scenes_stairs', 5.0),
-            ('cambridge_landmarks_GreatCourt', 6.0),
-            ('cambridge_landmarks_ShopFacade', 6.0),
-            ('cambridge_landmarks_KingsCollege', 6.0),
-            ('cambridge_landmarks_StMarysChurch', 6.0),
-            ('cambridge_landmarks_OldHospital', 6.0)
-        ]
+def main(dataset_path='data/absolute', force_opt = {}, dataset_filter=[], method_filter = []):
+    datasets = [
+        ('eth3d_130_dusmanu', 12.0),
+        ('7scenes_heads', 5.0),
+        ('7scenes_stairs', 5.0),
+        ('cambridge_landmarks_GreatCourt', 6.0),
+        ('cambridge_landmarks_ShopFacade', 6.0),
+        ('cambridge_landmarks_KingsCollege', 6.0),
+        ('cambridge_landmarks_StMarysChurch', 6.0),
+        ('cambridge_landmarks_OldHospital', 6.0)
+    ]
+
+    if len(dataset_filter) > 0:
+        datasets = [(n,t) for (n,t) in datasets if substr_in_list(n,dataset_filter)]
 
     evaluators = {
         'PnP (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnp'),
         'PnP (COLMAP)': lambda i: eval_pnp_estimator(i, estimator='pycolmap'),
-        'PnPL (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnpl')
+        #'PnPL (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnpl')
     }
+
+    if len(method_filter) > 0:
+        evaluators = {k:v for (k,v) in evaluators.items() if substr_in_list(k,method_filter)}
 
     metrics = {}
     full_results = {}
@@ -135,6 +140,6 @@ def main(dataset_path='data/absolute', datasets=None, force_opt = {}):
     return metrics, full_results
 
 if __name__ == '__main__':
-    force_opt = posebench.parse_args()
-    metrics, _ = main(force_opt=force_opt)
+    force_opt, method_filter, dataset_filter = posebench.parse_args()
+    metrics, _ = main(force_opt=force_opt, method_filter=method_filter, dataset_filter=dataset_filter)
     posebench.print_metrics_per_dataset(metrics)

@@ -121,23 +121,24 @@ def eval_fundamental_refinement(instance):
     return [0.0], 0.0
 
 
-def main(dataset_path='data/relative', datasets=None, force_opt = {}):
-    if datasets is None:
-        datasets = [
-            #('fisheye_grossmunster_4342', 1.0),
-            #('fisheye_kirchenge_2731', 1.0),
-            ('scannet1500_sift', 1.5),
-            ('scannet1500_spsg', 1.5),
-            ('imc_british_museum', 0.75),
-            ('imc_london_bridge', 0.75),
-            ('imc_piazza_san_marco', 0.75),
-            ('imc_florence_cathedral_side', 0.75),
-            ('imc_milan_cathedral', 0.75),
-            ('imc_sagrada_familia', 0.75),
-            ('imc_lincoln_memorial_statue', 0.75),
-            ('imc_mount_rushmore', 0.75),
-            ('imc_st_pauls_cathedral', 0.75)
-        ]
+def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method_filter = []):
+    datasets = [
+        #('fisheye_grossmunster_4342', 1.0),
+        #('fisheye_kirchenge_2731', 1.0),
+        ('scannet1500_sift', 1.5),
+        ('scannet1500_spsg', 1.5),
+        ('imc_british_museum', 0.75),
+        ('imc_london_bridge', 0.75),
+        ('imc_piazza_san_marco', 0.75),
+        ('imc_florence_cathedral_side', 0.75),
+        ('imc_milan_cathedral', 0.75),
+        ('imc_sagrada_familia', 0.75),
+        ('imc_lincoln_memorial_statue', 0.75),
+        ('imc_mount_rushmore', 0.75),
+        ('imc_st_pauls_cathedral', 0.75)
+    ]
+    if len(dataset_filter) > 0:
+        datasets = [(n,t) for (n,t) in datasets if substr_in_list(n,dataset_filter)]
 
     evaluators = {
         'E (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib'),
@@ -145,6 +146,8 @@ def main(dataset_path='data/relative', datasets=None, force_opt = {}):
         'F (poselib)': lambda i: eval_fundamental_estimator(i, estimator='poselib'),
         'F (COLMAP)': lambda i: eval_fundamental_estimator(i, estimator='pycolmap'),
     }
+    if len(method_filter) > 0:
+        evaluators = {k:v for (k,v) in evaluators.items() if substr_in_list(k,method_filter)}
 
     
     
@@ -192,6 +195,6 @@ def main(dataset_path='data/relative', datasets=None, force_opt = {}):
     return metrics, full_results
 
 if __name__ == '__main__':
-    force_opt = posebench.parse_args()
-    metrics, _ = main(force_opt=force_opt)
+    force_opt, method_filter, dataset_filter = posebench.parse_args()
+    metrics, _ = main(force_opt=force_opt, method_filter=method_filter, dataset_filter=dataset_filter)
     posebench.print_metrics_per_dataset(metrics)

@@ -61,17 +61,22 @@ def eval_homography_estimator(instance, estimator='poselib'):
     
     return [best_err_R, best_err_t], (tt2-tt1).total_seconds()
 
-def main(dataset_path='data/homography', datasets=None, force_opt = {}):
-    if datasets is None:
-        datasets = [
-            ('barath_Alamo', 1.0),
-            ('barath_NYC_Library', 1.0),
-        ]
+def main(dataset_path='data/homography', force_opt = {}, dataset_filter=[], method_filter = []):
+    datasets = [
+        ('barath_Alamo', 1.0),
+        ('barath_NYC_Library', 1.0),
+    ]
+    if len(dataset_filter) > 0:
+        datasets = [(n,t) for (n,t) in datasets if substr_in_list(n,dataset_filter)]
+
 
     evaluators = {
         'H (poselib)': lambda i: eval_homography_estimator(i, estimator='poselib'),
         'H (COLMAP)': lambda i: eval_homography_estimator(i, estimator='pycolmap'),
     }
+    if len(method_filter) > 0:
+        evaluators = {k:v for (k,v) in evaluators.items() if substr_in_list(k,method_filter)}
+
     
     metrics = {}
     full_results = {}
@@ -125,6 +130,6 @@ def main(dataset_path='data/homography', datasets=None, force_opt = {}):
     return metrics, full_results
 
 if __name__ == '__main__':
-    force_opt = posebench.parse_args()
-    metrics, _ = main(force_opt=force_opt)
+    force_opt, method_filter, dataset_filter = posebench.parse_args()
+    metrics, _ = main(force_opt=force_opt, method_filter=method_filter, dataset_filter=dataset_filter)
     posebench.print_metrics_per_dataset(metrics)

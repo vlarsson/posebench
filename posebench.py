@@ -10,10 +10,22 @@ def parse_args():
     parser.add_argument('--min_iterations', required=False, type=int)
     parser.add_argument('--max_iterations', required=False, type=int)
     parser.add_argument('--success_prob', required=False, type=float)
+    parser.add_argument('--method',  required=False, type=str)
+    parser.add_argument('--dataset',  required=False, type=str)
+    
     args = parser.parse_args()
     args = vars(args)
     args = { k:v for (k,v) in args.items() if v is not None}
-    return args
+
+    method_filter = []
+    if 'method' in args:
+        method_filter = args['method'].split(',')
+        del args['method']
+    dataset_filter = []
+    if 'dataset' in args:
+        dataset_filter = args['dataset'].split(',')
+        del args['dataset']
+    return args, method_filter, dataset_filter
 
 
 def format_metric(name, value):
@@ -67,7 +79,7 @@ def compute_average_metrics(metrics):
     return avg_metrics
 
 if __name__ == '__main__':
-    force_opt = parse_args()
+    force_opt,  method_filter, dataset_filter = parse_args()
     problems = {
         'absolute pose': absolute_pose.main,
         'relative pose': relative_pose.main,
@@ -78,7 +90,7 @@ if __name__ == '__main__':
     dataset_names = []
     for name, problem in problems.items():
         print(f'Running problem {name}')
-        metrics, _ = problem(force_opt = force_opt)
+        metrics, _ = problem(force_opt = force_opt, method_filter=method_filter, dataset_filter=dataset_filter)
 
         avg_metrics = compute_average_metrics(metrics)
         compiled_metrics.append(avg_metrics)

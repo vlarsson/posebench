@@ -125,6 +125,9 @@ def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method
     datasets = [
         #('fisheye_grossmunster_4342', 1.0),
         #('fisheye_kirchenge_2731', 1.0),
+        ('megadepth1500_sift', 2.0),
+        ('megadepth1500_spsg', 2.0),
+        ('megadepth1500_splg', 2.0),
         ('scannet1500_sift', 1.5),
         ('scannet1500_spsg', 1.5),
         ('imc_british_museum', 0.75),

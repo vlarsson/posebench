@@ -30,41 +30,6 @@ def compute_metrics(results, thresholds=[5.0, 10.0, 20.0]):
     return metrics
 
 
-def eval_fundamental_estimator(instance, estimator='poselib'):
-    opt = instance['opt']
-    if estimator == 'poselib':
-        tt1 = datetime.datetime.now()
-        F, info = poselib.estimate_fundamental(instance['x1'], instance['x2'], opt, {})
-        tt2 = datetime.datetime.now()
-        inl = info['inliers']
-    elif estimator == 'pycolmap':
-        opt = poselib_opt_to_pycolmap_opt(opt)
-        tt1 = datetime.datetime.now()
-        result = pycolmap.fundamental_matrix_estimation(instance['x1'], instance['x2'], opt)
-        tt2 = datetime.datetime.now()
-        if 'F' not in result:
-            return [180.0, 180.0], (tt2 - tt1).total_seconds()
-        F = result['F']
-        inl = result['inliers']
-    else:
-        raise Exception('nyi')
-
-    K1 = camera_dict_to_calib_matrix(instance['cam1'])
-    K2 = camera_dict_to_calib_matrix(instance['cam2'])
-    if np.sum(inl) < 5:
-        return [180.0, 180.0], (tt2 - tt1).total_seconds()
-
-    E = K2.T @ F @ K1
-    x1i = calibrate_pts(instance['x1'][inl], K1)
-    x2i = calibrate_pts(instance['x2'][inl], K2)
-
-    _, R, t, good = cv2.recoverPose(E, x1i, x2i)
-    err_R = rotation_angle(instance['R'] @ R.T)
-    err_t = angle(instance['t'], t)
-
-    return [err_R, err_t], (tt2 - tt1).total_seconds()
-
-
 def eval_focal_relative_pose_estimator(instance, estimator=None):
     opt = instance['opt']
     K = camera_dict_to_calib_matrix(instance['cam1'])
@@ -72,24 +37,20 @@ def eval_focal_relative_pose_estimator(instance, estimator=None):
     f_gt = (K[0, 0] + K[1, 1]) / 2
 
     tt1 = datetime.datetime.now()
-    pose, camera, info = poselib.estimate_focal_relative_pose(instance['x1'], instance['x2'], pp, opt, {})
+    image_pair, info = poselib.estimate_shared_focal_relative_pose(instance['x1'], instance['x2'], pp, opt, {})
     tt2 = datetime.datetime.now()
     inl = info['inliers']
 
     if np.sum(inl) < 5:
         return [180.0, 180.0, 100.0], (tt2 - tt1).total_seconds()
 
-    R = pose.R
-    t = pose.t
-    err_f = np.abs(f_gt - camera.focal()) / f_gt
+    R = image_pair.pose.R
+    t = image_pair.pose.t
+    err_f = np.abs(f_gt - image_pair.camera_1.focal()) / f_gt
     err_R = rotation_angle(instance['R'] @ R.T)
     err_t = angle(instance['t'], t)
 
     return [err_R, err_t, 100.0 * err_f], (tt2 - tt1).total_seconds()
-
-
-def eval_fundamental_refinement(instance):
-    return [0.0], 0.0
 
 
 def main(dataset_path='data/relative', force_opt={}, dataset_filter=[], method_filter=[]):

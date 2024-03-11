@@ -81,7 +81,7 @@ def eval_essential_refinement(instance):
 def eval_fundamental_estimator(instance, estimator='poselib'):
     opt = instance['opt']
     if estimator == 'poselib':
-        opt['rfc'] = False
+        opt['real_focal_check'] = False
         p1 = camera_dict_to_calib_matrix(instance['cam1'])[np.newaxis, :2, 2]
         p2 = camera_dict_to_calib_matrix(instance['cam2'])[np.newaxis, :2, 2]
         tt1 = datetime.datetime.now()
@@ -89,7 +89,7 @@ def eval_fundamental_estimator(instance, estimator='poselib'):
         tt2 = datetime.datetime.now()
         inl = info['inliers']
     elif estimator == 'poselib_rfc':
-        opt['rfc'] = True
+        opt['real_focal_check'] = True
         p1 = camera_dict_to_calib_matrix(instance['cam1'])[np.newaxis, :2, 2]
         p2 = camera_dict_to_calib_matrix(instance['cam2'])[np.newaxis, :2, 2]
         tt1 = datetime.datetime.now()

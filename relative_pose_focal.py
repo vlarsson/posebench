@@ -46,7 +46,7 @@ def eval_focal_relative_pose_estimator(instance, estimator=None):
 
     R = image_pair.pose.R
     t = image_pair.pose.t
-    err_f = np.abs(f_gt - image_pair.camera_1.focal()) / f_gt
+    err_f = np.abs(f_gt - image_pair.camera1.focal()) / f_gt
     err_R = rotation_angle(instance['R'] @ R.T)
     err_t = angle(instance['t'], t)
 

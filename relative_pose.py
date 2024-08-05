@@ -38,7 +38,7 @@ def eval_essential_estimator(instance, estimator='poselib'):
         tt1 = datetime.datetime.now()
         result = pycolmap.essential_matrix_estimation(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt)
         tt2 = datetime.datetime.now()
-        R = qvec2rotmat(result['cam2_from_cam1'].rotation.quat)
+        R = qvec2rotmat(eigen_quat_to_wxyz(result['cam2_from_cam1'].rotation.quat))
         t = result['cam2_from_cam1'].translation
     else:
         raise Exception('nyi')

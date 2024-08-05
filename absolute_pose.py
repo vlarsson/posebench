@@ -44,9 +44,9 @@ def eval_pnp_estimator(instance, estimator='poselib_pnp'):
     elif estimator == 'pycolmap':
         opt = poselib_opt_to_pycolmap_opt(opt)
         tt1 = datetime.datetime.now()
-        result = pycolmap.absolute_pose_estimation(instance['p2d'], instance['p3d'], instance['cam'], {"ransac": opt})
+        result = pycolmap.absolute_pose_estimation(instance['p2d'], instance['p3d'], instance['cam'], {"estimate_focal_length": False, "ransac": opt})
         tt2 = datetime.datetime.now()
-        R = qvec2rotmat(result["cam_from_world"].rotation.quat)
+        R = qvec2rotmat(eigen_quat_to_wxyz(result["cam_from_world"].rotation.quat))
         t = result["cam_from_world"].translation
 
     err_R = rotation_angle(instance['R'] @ R.T)

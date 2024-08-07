@@ -3,7 +3,9 @@ import datetime
 import absolute_pose
 import relative_pose
 import homography
+import relative_pose_focal
 import argparse
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -126,6 +128,7 @@ if __name__ == '__main__':
         'absolute pose': absolute_pose.main,
         'relative pose': relative_pose.main,
         'homography': homography.main,
+        'relative pose + focal': relative_pose_focal.main,
     }
     start_time = datetime.datetime.now()
     compiled_metrics = []

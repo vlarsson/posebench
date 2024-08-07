@@ -44,9 +44,15 @@ def camera_dict_to_calib_matrix(cam):
     if cam['model'] == 'PINHOLE':
         p = cam['params']
         return np.array([[p[0], 0.0, p[2]], [0.0, p[1], p[3]], [0.0, 0.0, 1.0]])
+    elif cam['model'] == 'SIMPLE_PINHOLE':
+        p = cam['params']
+        return np.array([[p[0], 0.0, p[1]], [0.0, p[0], p[2]], [0.0, 0.0, 1.0]])
+    elif cam['model'] == 'SIMPLE_RADIAL':
+        p = cam['params']
+        return np.array([[p[0], 0.0, p[1]], [0.0, p[0], p[2]], [0.0, 0.0, 1.0]])
     else:
         raise Exception('nyi model in camera_dict_to_calib_matrix')
-        
+
 
 # From Paul
 def compute_auc(errors, thresholds):

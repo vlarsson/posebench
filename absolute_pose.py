@@ -36,11 +36,20 @@ def eval_pnp_estimator(instance, estimator='poselib_pnp'):
         pose, info = poselib.estimate_absolute_pose(instance['p2d'], instance['p3d'], instance['cam'], opt, {})
         tt2 = datetime.datetime.now()
         (R,t) = (pose.R, pose.t)
+
+    if estimator == 'poselib_pnpf':    
+        pp = instance['K'][0:2,2]    
+        tt1 = datetime.datetime.now()
+        image, info = poselib.estimate_absolute_pose_focal(instance['p2d'], instance['p3d'], pp, opt, {})
+        tt2 = datetime.datetime.now()
+        (R,t) = (image.pose.R, image.pose.t)
+
     elif estimator == 'poselib_pnpl':
         tt1 = datetime.datetime.now()
         pose, info = poselib.estimate_absolute_pose_pnpl(instance['p2d'], instance['p3d'], instance['l2d'][:,0:2], instance['l2d'][:,2:4], instance['l3d'][:,0:3], instance['l3d'][:,3:6], instance['cam'], opt, {})
         tt2 = datetime.datetime.now()
         (R,t) = (pose.R, pose.t)
+
     elif estimator == 'pycolmap':
         opt = poselib_opt_to_pycolmap_opt(opt)
         tt1 = datetime.datetime.now()
@@ -48,6 +57,7 @@ def eval_pnp_estimator(instance, estimator='poselib_pnp'):
         tt2 = datetime.datetime.now()
         R = qvec2rotmat(eigen_quat_to_wxyz(result["cam_from_world"].rotation.quat))
         t = result["cam_from_world"].translation
+
 
     err_R = rotation_angle(instance['R'] @ R.T)
     err_c = np.linalg.norm(instance['R'].T @ instance['t'] - R.T @ t)
@@ -64,7 +74,8 @@ def main(dataset_path='data/absolute', force_opt = {}, dataset_filter=[], method
         ('cambridge_landmarks_ShopFacade', 6.0),
         ('cambridge_landmarks_KingsCollege', 6.0),
         ('cambridge_landmarks_StMarysChurch', 6.0),
-        ('cambridge_landmarks_OldHospital', 6.0)
+        ('cambridge_landmarks_OldHospital', 6.0),
+        ('MegaScenes32k', 12.0)
     ]
 
     if len(dataset_filter) > 0:
@@ -73,6 +84,8 @@ def main(dataset_path='data/absolute', force_opt = {}, dataset_filter=[], method
     evaluators = {
         'PnP (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnp'),
         'PnP (COLMAP)': lambda i: eval_pnp_estimator(i, estimator='pycolmap'),
+
+        'PnPf (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnpf'),
         #'PnPL (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnpl')
     }
 
@@ -105,10 +118,14 @@ def main(dataset_path='data/absolute', force_opt = {}, dataset_filter=[], method
             opt[k] = v
 
         for k, v in tqdm(f.items(), desc=dataset):
+            cam_dict = h5_to_camera_dict(v['camera'])
+            K = camera_dict_to_calib_matrix(cam_dict)
+
             instance = {
                 'p2d': v['p2d'][:],
                 'p3d': v['p3d'][:],
-                'cam': h5_to_camera_dict(v['camera']),
+                'cam': cam_dict,
+                'K': K,
                 'R': v['R'][:],
                 't': v['t'][:],
                 'threshold': threshold,

@@ -26,11 +26,12 @@ def compute_metrics(results, thresholds = [5.0, 10.0, 20.0]):
 
     return metrics
 
-def eval_essential_estimator(instance, estimator='poselib'):
-    opt = instance['opt']
+def eval_essential_estimator(instance, estimator='poselib', ts=False):
+    opt = instance['opt'].copy()
+    opt['tangent_sampson'] = ts
     if estimator == 'poselib':
         tt1 = datetime.datetime.now()
-        pose, info = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt, {})
+        pose, info = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt)
         tt2 = datetime.datetime.now()
         (R,t) = (pose.R, pose.t)
     elif estimator == 'pycolmap':
@@ -48,30 +49,39 @@ def eval_essential_estimator(instance, estimator='poselib'):
 
     return [err_R, err_t], (tt2-tt1).total_seconds()
 
-def eval_essential_refinement(instance):
+def eval_essential_refinement(instance, ts=False):
     x1 = instance['x1']
     x2 = instance['x2']
     cam1 = instance['cam1']
     cam2 = instance['cam2']
-    
+        
+    init_pose, info = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], instance['opt'])
+    inl = info['inliers']
+
+    bundle_opt = {
+        'loss_type': 'TRUNCATED',
+        'loss_scale': instance['threshold'],
+    }
+
+
+    if ts:
+        c1 = poselib.Camera(cam1)
+        c2 = poselib.Camera(cam2)
+        init_pair = poselib.ImagePair(init_pose, c1, c2)
+
+        tt1 = datetime.datetime.now()
+        pair, info = poselib.refine_relative_pose(x1, x2, init_pair, bundle_opt)
+        tt2 = datetime.datetime.now()
+
+        pose = pair.pose
+    else:
+        
+        tt1 = datetime.datetime.now()
+        pose, info = poselib.refine_relative_pose(x1, x2, init_pose, cam1, cam2, bundle_opt)
+        tt2 = datetime.datetime.now()
+
     R_gt = instance['R']
     t_gt = instance['t']
-    E_gt = essential_from_pose(R_gt, t_gt)
-    F_gt = np.linalg.inv(K2.T) @ E_gt @ np.linalg.inv(K1)
-    samp_err = sampson_error(F_gt, x1, x2)
-    # TODO compute tangent sampson error here
-
-    threshold = instance['threshold']
-    inl = samp_err < threshold
-
-    init_pose = poselib.CameraPose()
-    init_pose.R = R_gt
-    init_pose.t = t_gt
-
-    tt1 = datetime.datetime.now()
-    pose, info = poselib.refine_relative_pose(x1[inl], x2[inl], init_pose, cam1, cam2, {})
-    tt2 = datetime.datetime.now()
-
     err_R = rotation_angle(R_gt @ pose.R.T)
     err_t = angle(t_gt, pose.t)
 
@@ -124,30 +134,34 @@ def eval_fundamental_refinement(instance):
 def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method_filter = []):
     datasets = [
         #('fisheye_grossmunster_4342', 1.0),
-        #('fisheye_kirchenge_2731', 1.0),
-        ('megadepth1500_sift', 2.0),
-        ('megadepth1500_spsg', 2.0),
-        ('megadepth1500_splg', 2.0),
-        ('scannet1500_sift', 1.5),
-        ('scannet1500_spsg', 1.5),
-        ('imc_british_museum', 0.75),
-        ('imc_london_bridge', 0.75),
-        ('imc_piazza_san_marco', 0.75),
-        ('imc_florence_cathedral_side', 0.75),
-        ('imc_milan_cathedral', 0.75),
-        ('imc_sagrada_familia', 0.75),
-        ('imc_lincoln_memorial_statue', 0.75),
-        ('imc_mount_rushmore', 0.75),
-        ('imc_st_pauls_cathedral', 0.75)
+        ('fisheye_kirchenge_2731', 1.0),
+        #('megadepth1500_roma', 2.0),
+        #('megadepth1500_sift', 2.0),
+        #('megadepth1500_spsg', 2.0),
+        #('megadepth1500_splg', 2.0),
+        #('scannet1500_sift', 1.5),
+        #('scannet1500_spsg', 1.5),
+        #('imc_british_museum', 0.75),
+        #('imc_london_bridge', 0.75),
+        #('imc_piazza_san_marco', 0.75),
+        #('imc_florence_cathedral_side', 0.75),
+        #('imc_milan_cathedral', 0.75),
+        #('imc_sagrada_familia', 0.75),
+        #('imc_lincoln_memorial_statue', 0.75),
+        #('imc_mount_rushmore', 0.75),
+        #('imc_st_pauls_cathedral', 0.75)
     ]
     if len(dataset_filter) > 0:
         datasets = [(n,t) for (n,t) in datasets if substr_in_list(n,dataset_filter)]
 
     evaluators = {
         'E (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib'),
-        'E (COLMAP)': lambda i: eval_essential_estimator(i, estimator='pycolmap'),
-        'F (poselib)': lambda i: eval_fundamental_estimator(i, estimator='poselib'),
-        'F (COLMAP)': lambda i: eval_fundamental_estimator(i, estimator='pycolmap'),
+        'E TS (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib', ts=True),
+        'TS (poselib)': lambda i: eval_essential_refinement(i, ts=True),
+        'S (poselib)': lambda i: eval_essential_refinement(i, ts=False),
+        #'E (COLMAP)': lambda i: eval_essential_estimator(i, estimator='pycolmap'),
+        #'F (poselib)': lambda i: eval_fundamental_estimator(i, estimator='poselib'),
+        #'F (COLMAP)': lambda i: eval_fundamental_estimator(i, estimator='pycolmap'),
     }
     if len(method_filter) > 0:
         evaluators = {k:v for (k,v) in evaluators.items() if substr_in_list(k,method_filter)}
@@ -155,16 +169,17 @@ def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method
     
     
     metrics = {}
-    full_results = {}
+    full_results = {}    
     for (dataset, threshold) in datasets:
         f = h5py.File(f'{dataset_path}/{dataset}.h5', 'r')
 
         opt = {
-            'max_reproj_error': threshold,
-            'max_epipolar_error': threshold,
-            'max_iterations': 1000,
-            'min_iterations': 100,
-            'success_prob': 0.9999
+            'max_error': threshold,
+            'ransac' : {            
+                'max_iterations': 1000,
+                'min_iterations': 100,
+                'success_prob': 0.9999
+            }
         }
 
         for k, v in force_opt.items():
@@ -177,7 +192,11 @@ def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method
                 'runtime': []
             }
 
+        cnt = 0
         for k, v in tqdm(f.items(), desc=dataset):
+            cnt +=1 
+            if cnt > 500:
+                break
             instance = {
                 'x1': v['x1'][:],
                 'x2': v['x2'][:],

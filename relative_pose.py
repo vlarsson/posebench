@@ -34,6 +34,11 @@ def eval_essential_estimator(instance, estimator='poselib', ts=False):
         pose, info = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt)
         tt2 = datetime.datetime.now()
         (R,t) = (pose.R, pose.t)
+
+        #opt['tangent_sampson'] = not ts
+        #pose2, info2 = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt)
+        #import ipdb
+        #ipdb.set_trace()
     elif estimator == 'pycolmap':
         opt = poselib_opt_to_pycolmap_opt(opt)
         tt1 = datetime.datetime.now()
@@ -55,15 +60,18 @@ def eval_essential_refinement(instance, ts=False):
     cam1 = instance['cam1']
     cam2 = instance['cam2']
         
-    init_pose, info = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], instance['opt'])
+    opt = instance['opt'].copy()
+    opt['tangent_sampson'] = False
+    init_pose, info = poselib.estimate_relative_pose(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt)
     inl = info['inliers']
 
     bundle_opt = {
         'loss_type': 'TRUNCATED',
         'loss_scale': instance['threshold'],
+        'verbose': False
     }
 
-
+    #print(f'{ts=}')
     if ts:
         c1 = poselib.Camera(cam1)
         c2 = poselib.Camera(cam2)
@@ -72,6 +80,8 @@ def eval_essential_refinement(instance, ts=False):
         tt1 = datetime.datetime.now()
         pair, info = poselib.refine_relative_pose(x1, x2, init_pair, bundle_opt)
         tt2 = datetime.datetime.now()
+
+        
 
         pose = pair.pose
     else:
@@ -84,6 +94,9 @@ def eval_essential_refinement(instance, ts=False):
     t_gt = instance['t']
     err_R = rotation_angle(R_gt @ pose.R.T)
     err_t = angle(t_gt, pose.t)
+
+    #import ipdb
+    #ipdb.set_trace()
 
     return [err_R, err_t], (tt2-tt1).total_seconds()
 
@@ -134,31 +147,33 @@ def eval_fundamental_refinement(instance):
 def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method_filter = []):
     datasets = [
         #('fisheye_grossmunster_4342', 1.0),
-        ('fisheye_kirchenge_2731', 1.0),
-        #('megadepth1500_roma', 2.0),
-        #('megadepth1500_sift', 2.0),
-        #('megadepth1500_spsg', 2.0),
-        #('megadepth1500_splg', 2.0),
-        #('scannet1500_sift', 1.5),
-        #('scannet1500_spsg', 1.5),
-        #('imc_british_museum', 0.75),
-        #('imc_london_bridge', 0.75),
-        #('imc_piazza_san_marco', 0.75),
-        #('imc_florence_cathedral_side', 0.75),
-        #('imc_milan_cathedral', 0.75),
-        #('imc_sagrada_familia', 0.75),
-        #('imc_lincoln_memorial_statue', 0.75),
-        #('imc_mount_rushmore', 0.75),
-        #('imc_st_pauls_cathedral', 0.75)
+        #('fisheye_kirchenge_2731', 1.0),
+        ('megadepth1500_roma', 2.0),
+        ('megadepth1500_aspanformer', 2.0),
+        ('scannet1500_aspanformer', 1.5),
+        ('megadepth1500_sift', 2.0),
+        ('megadepth1500_spsg', 2.0),
+        ('megadepth1500_splg', 2.0),
+        ('scannet1500_sift', 1.5),
+        ('scannet1500_spsg', 1.5),
+        ('imc_british_museum', 0.75),
+        ('imc_london_bridge', 0.75),
+        ('imc_piazza_san_marco', 0.75),
+        ('imc_florence_cathedral_side', 0.75),
+        ('imc_milan_cathedral', 0.75),
+        ('imc_sagrada_familia', 0.75),
+        ('imc_lincoln_memorial_statue', 0.75),
+        ('imc_mount_rushmore', 0.75),
+        ('imc_st_pauls_cathedral', 0.75)
     ]
     if len(dataset_filter) > 0:
         datasets = [(n,t) for (n,t) in datasets if substr_in_list(n,dataset_filter)]
 
     evaluators = {
         'E (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib'),
-        'E TS (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib', ts=True),
-        'TS (poselib)': lambda i: eval_essential_refinement(i, ts=True),
-        'S (poselib)': lambda i: eval_essential_refinement(i, ts=False),
+        #'E TS (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib', ts=True),
+        #'TS (poselib)': lambda i: eval_essential_refinement(i, ts=True),
+        #'S (poselib)': lambda i: eval_essential_refinement(i, ts=False),
         #'E (COLMAP)': lambda i: eval_essential_estimator(i, estimator='pycolmap'),
         #'F (poselib)': lambda i: eval_fundamental_estimator(i, estimator='poselib'),
         #'F (COLMAP)': lambda i: eval_fundamental_estimator(i, estimator='pycolmap'),
@@ -195,7 +210,7 @@ def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method
         cnt = 0
         for k, v in tqdm(f.items(), desc=dataset):
             cnt +=1 
-            if cnt > 500:
+            if cnt > 100:
                 break
             instance = {
                 'x1': v['x1'][:],

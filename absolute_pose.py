@@ -27,17 +27,27 @@ def compute_metrics(results, thresholds = [0.1, 1.0, 5.0]):
     return metrics
 
 
-def eval_pnp_estimator(instance, estimator='poselib_pnp'):
+def eval_pnp_estimator(instance, estimator='poselib_pnp', estimate_focal=False, estimate_extra=False):
     opt = instance['opt']
+    cam = instance['cam']
+    opt['estimate_focal_length'] = estimate_focal
+    opt['estimate_extra_params'] = estimate_extra
+
+    if estimate_focal and not estimate_extra:
+        cam_pl = poselib.Camera('SIMPLE_PINHOLE', [], cam['width'], cam['height'])
+        cam = cam_pl.todict()
+    if estimate_focal and estimate_extra:
+        cam_pl = poselib.Camera('OPENCV_FISHEYE', [], cam['width'], cam['height'])
+        cam = cam_pl.todict()
 
     if estimator == 'poselib_pnp':
         tt1 = datetime.datetime.now()
-        pose, info = poselib.estimate_absolute_pose(instance['p2d'], instance['p3d'], instance['cam'], opt, {})
+        image, info = poselib.estimate_absolute_pose(instance['p2d'], instance['p3d'], cam, opt)
         tt2 = datetime.datetime.now()
-        (R,t) = (pose.R, pose.t)
+        (R,t) = (image.pose.R, image.pose.t)
     if estimator == 'poselib_pnpl':
         tt1 = datetime.datetime.now()
-        pose, info = poselib.estimate_absolute_pose_pnpl(instance['p2d'], instance['p3d'], instance['l2d'][:,0:2], instance['l2d'][:,2:4], instance['l3d'][:,0:3], instance['l3d'][:,3:6], instance['cam'], opt, {})
+        pose, info = poselib.estimate_absolute_pose_pnpl(instance['p2d'], instance['p3d'], instance['l2d'][:,0:2], instance['l2d'][:,2:4], instance['l3d'][:,0:3], instance['l3d'][:,3:6], instance['cam'], opt)
         tt2 = datetime.datetime.now()
         (R,t) = (pose.R, pose.t)
          
@@ -73,8 +83,10 @@ def main(dataset_path='data/absolute', force_opt = {}, dataset_filter=[], method
         datasets = [(n,t) for (n,t) in datasets if substr_in_list(n,dataset_filter)]
 
     evaluators = {
+        'PnPfr (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnp', estimate_focal=True, estimate_extra=True),
+        'PnPf (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnp', estimate_focal=True, estimate_extra=False),
         'PnP (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnp'),
-        'PnP (COLMAP)': lambda i: eval_pnp_estimator(i, estimator='pycolmap'),
+        #'PnP (COLMAP)': lambda i: eval_pnp_estimator(i, estimator='pycolmap'),
         #'PnPL (poselib)': lambda i: eval_pnp_estimator(i, estimator='poselib_pnpl')
     }
 
@@ -95,11 +107,12 @@ def main(dataset_path='data/absolute', force_opt = {}, dataset_filter=[], method
 
         # RANSAC options
         opt = {
-            'max_reproj_error': threshold,
-            'max_epipolar_error': threshold,
-            'max_iterations': 1000,
-            'min_iterations': 100,
-            'success_prob': 0.9999
+            'max_error': threshold,
+            'ransac': {
+                'max_iterations': 1000,
+                'min_iterations': 100,
+                'success_prob': 0.9999
+            }
         }
 
         # Add in global overrides

@@ -133,3 +133,7 @@ if __name__ == '__main__':
     force_opt, method_filter, dataset_filter = posebench.parse_args()
     metrics, _ = main(force_opt=force_opt, method_filter=method_filter, dataset_filter=dataset_filter)
     posebench.print_metrics_per_dataset(metrics)
+
+    print('\nAverage metrics:')
+    avg_metrics = posebench.compute_average_metrics(metrics)
+    posebench.print_metrics_per_method_table(avg_metrics)

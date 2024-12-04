@@ -23,11 +23,17 @@ wget -N http://vision.maths.lth.se/viktor/posebench/relative/imc_mount_rushmore.
 # Image pairs from ScanNet. Evaluation protocol from SuperGlue paper (Sarlin et al.)
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_spsg.h5
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_sift.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_roma.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_dkm.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_aspanformer.h5
 
 # Image pairs from MegaDepth
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_sift.h5
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_spsg.h5
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_splg.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_roma.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_dkm.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_aspanformer.h5
 
 cd ..
 mkdir absolute
@@ -45,7 +51,51 @@ wget -N http://vision.maths.lth.se/viktor/posebench/absolute/cambridge_landmarks
 wget -N http://vision.maths.lth.se/viktor/posebench/absolute/cambridge_landmarks_ShopFacade.h5
 wget -N http://vision.maths.lth.se/viktor/posebench/absolute/eth3d_130_dusmanu.h5
 
-cd ..
+# Calibration pattern images collected from BabelCalib
+mkdir calib
+cd calib
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_single_plane_2012-A0.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_Snapdragon_outdoor_45.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_TUMVI.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_DAVIS_outdoor_forward.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_single_plane_3136-H0.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_corner_ov01.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_BM2820.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_GOPR.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_Snapdragon_indoor_forward.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_corner_ov00.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_corner_ov07.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_Snapdragon_outdoor_forward.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_cube_ov00.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_cube_ov01.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_single_plane_5501-C4.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_GOPRO.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_ENTANIYA.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_Fisheye2.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_corner_ov06.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_BM4018S118.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_Omni.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_cube_ov03.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_KaidanOmni.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_Snapdragon_indoor_45.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_corner_ov05.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_Ladybug.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_single_plane_130108MP.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_DAVIS_indoor_45.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_Fisheye1.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_cube_ov02.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OV_corner_ov04.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_DAVIS_indoor_forward.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_BF2M2020S23.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/UZH_DAVIS_outdoor_45.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_EUROC.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_MiniOmni.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/Kalibr_BF5M13720.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_VMRImage.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/absolute/calib/OCamCalib_Fisheye190deg.h5
+
+cd ../..
+
 mkdir homography
 cd homography
 # Homography dataset (validation set) from Barath et al. (CVPR 2023?)

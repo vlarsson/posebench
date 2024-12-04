@@ -3,6 +3,7 @@ import numpy as np
 from utils.geometry import *
 from utils.misc import *
 import poselib
+import pycolmap
 import datetime
 import posebench
 from tqdm import tqdm
@@ -35,21 +36,18 @@ def eval_pnp_estimator(instance, estimator='poselib_pnp'):
         pose, info = poselib.estimate_absolute_pose(instance['p2d'], instance['p3d'], instance['cam'], opt, {})
         tt2 = datetime.datetime.now()
         (R,t) = (pose.R, pose.t)
-    if estimator == 'poselib_pnpl':
+    elif estimator == 'poselib_pnpl':
         tt1 = datetime.datetime.now()
         pose, info = poselib.estimate_absolute_pose_pnpl(instance['p2d'], instance['p3d'], instance['l2d'][:,0:2], instance['l2d'][:,2:4], instance['l3d'][:,0:3], instance['l3d'][:,3:6], instance['cam'], opt, {})
         tt2 = datetime.datetime.now()
         (R,t) = (pose.R, pose.t)
-         
     elif estimator == 'pycolmap':
         opt = poselib_opt_to_pycolmap_opt(opt)
         tt1 = datetime.datetime.now()
-
-        result = pycolmap.absolute_pose_estimation(instance['p2d'], instance['p3d'], instance['cam'],
-                opt.max_error, opt.min_inlier_ratio, opt.min_num_trials, opt.max_num_trials, opt.confidence)
+        result = pycolmap.absolute_pose_estimation(instance['p2d'], instance['p3d'], instance['cam'], {"estimate_focal_length": False, "ransac": opt})
         tt2 = datetime.datetime.now()
-        R = qvec2rotmat(result['qvec'])
-        t = result['tvec']
+        R = qvec2rotmat(eigen_quat_to_wxyz(result["cam_from_world"].rotation.quat))
+        t = result["cam_from_world"].translation
 
     err_R = rotation_angle(instance['R'] @ R.T)
     err_c = np.linalg.norm(instance['R'].T @ instance['t'] - R.T @ t)
@@ -116,8 +114,6 @@ def main(dataset_path='data/absolute', force_opt = {}, dataset_filter=[], method
                 'threshold': threshold,
                 'opt': opt  
             }
-
-            
 
             # Check if we have 2D-3D line correspondences
             if 'l2d' in v:

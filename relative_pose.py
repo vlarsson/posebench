@@ -39,8 +39,13 @@ def eval_essential_estimator(instance, estimator='poselib', ts=False):
         tt1 = datetime.datetime.now()
         result = pycolmap.essential_matrix_estimation(instance['x1'], instance['x2'], instance['cam1'], instance['cam2'], opt)
         tt2 = datetime.datetime.now()
-        R = qvec2rotmat(result['qvec'])
-        t = result['tvec']
+        
+        if result is not None:
+            R = qvec2rotmat(eigen_quat_to_wxyz(result['cam2_from_cam1'].rotation.quat))
+            t = result['cam2_from_cam1'].translation
+        else:
+            R = np.eye(3)
+            t = np.zeros(3)
     else:
         raise Exception('nyi')
 
@@ -100,7 +105,7 @@ def eval_fundamental_estimator(instance, estimator='poselib'):
         tt1 = datetime.datetime.now()
         result = pycolmap.fundamental_matrix_estimation(instance['x1'], instance['x2'], opt)
         tt2 = datetime.datetime.now()
-        if 'F' not in result:
+        if result is None or 'F' not in result:
             return [180.0, 180.0], (tt2-tt1).total_seconds()
         F = result['F']
         inl = result['inliers']
@@ -134,22 +139,27 @@ def eval_fundamental_refinement(instance):
 def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method_filter = []):
     datasets = [
         #('fisheye_grossmunster_4342', 1.0),
-        ('fisheye_kirchenge_2731', 1.0),
-        #('megadepth1500_roma', 2.0),
-        #('megadepth1500_sift', 2.0),
-        #('megadepth1500_spsg', 2.0),
-        #('megadepth1500_splg', 2.0),
-        #('scannet1500_sift', 1.5),
-        #('scannet1500_spsg', 1.5),
-        #('imc_british_museum', 0.75),
-        #('imc_london_bridge', 0.75),
-        #('imc_piazza_san_marco', 0.75),
-        #('imc_florence_cathedral_side', 0.75),
-        #('imc_milan_cathedral', 0.75),
-        #('imc_sagrada_familia', 0.75),
-        #('imc_lincoln_memorial_statue', 0.75),
-        #('imc_mount_rushmore', 0.75),
-        #('imc_st_pauls_cathedral', 0.75)
+        #('fisheye_kirchenge_2731', 1.0),
+        ('megadepth1500_sift', 1.0),
+        ('megadepth1500_spsg', 1.0),
+        ('megadepth1500_splg', 1.0),
+        ('megadepth1500_roma', 1.0),
+        ('megadepth1500_dkm', 1.0),
+        ('megadepth1500_aspanformer', 1.0),
+        ('scannet1500_sift', 1.5),
+        ('scannet1500_spsg', 1.5),
+        ('scannet1500_roma', 2.5),
+        ('scannet1500_dkm', 2.5),
+        ('scannet1500_aspanformer', 2.5),
+        ('imc_british_museum', 0.75),
+        ('imc_london_bridge', 0.75),
+        ('imc_piazza_san_marco', 0.75),
+        ('imc_florence_cathedral_side', 0.75),
+        ('imc_milan_cathedral', 0.75),
+        ('imc_sagrada_familia', 0.75),
+        ('imc_lincoln_memorial_statue', 0.75),
+        ('imc_mount_rushmore', 0.75),
+        ('imc_st_pauls_cathedral', 0.75)
     ]
     if len(dataset_filter) > 0:
         datasets = [(n,t) for (n,t) in datasets if substr_in_list(n,dataset_filter)]

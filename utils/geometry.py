@@ -21,6 +21,10 @@ def angle(v1,v2):
     return np.rad2deg(np.arccos(np.clip(np.dot(v1s, v2s) / n, -1.0, 1.0)))
 
 
+def eigen_quat_to_wxyz(quat):
+    return np.array([quat[3], quat[0], quat[1], quat[2]])
+
+
 def qvec2rotmat(qvec):
     return np.array([
         [1 - 2 * qvec[2]**2 - 2 * qvec[3]**2,

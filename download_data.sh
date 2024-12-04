@@ -23,11 +23,17 @@ wget -N http://vision.maths.lth.se/viktor/posebench/relative/imc_mount_rushmore.
 # Image pairs from ScanNet. Evaluation protocol from SuperGlue paper (Sarlin et al.)
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_spsg.h5
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_sift.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_roma.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_dkm.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/scannet1500_aspanformer.h5
 
 # Image pairs from MegaDepth
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_sift.h5
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_spsg.h5
 wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_splg.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_roma.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_dkm.h5
+wget -N http://vision.maths.lth.se/viktor/posebench/relative/megadepth1500_aspanformer.h5
 
 cd ..
 mkdir absolute

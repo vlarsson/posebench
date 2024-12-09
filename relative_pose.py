@@ -86,9 +86,23 @@ def eval_essential_refinement(instance):
 def eval_fundamental_estimator(instance, estimator='poselib'):
     opt = instance['opt']
     if estimator == 'poselib':
+        opt['real_focal_check'] = False
+        p1 = camera_dict_to_calib_matrix(instance['cam1'])[np.newaxis, :2, 2]
+        p2 = camera_dict_to_calib_matrix(instance['cam2'])[np.newaxis, :2, 2]
         tt1 = datetime.datetime.now()
         F, info = poselib.estimate_fundamental(instance['x1'], instance['x2'], opt, {})
         tt2 = datetime.datetime.now()
+        inl = info['inliers']
+    elif estimator == 'poselib_rfc':
+        opt['real_focal_check'] = True
+        p1 = camera_dict_to_calib_matrix(instance['cam1'])[np.newaxis, :2, 2]
+        p2 = camera_dict_to_calib_matrix(instance['cam2'])[np.newaxis, :2, 2]
+        tt1 = datetime.datetime.now()
+        F, info = poselib.estimate_fundamental(instance['x1'] - p1, instance['x2'] - p2, opt, {})
+        tt2 = datetime.datetime.now()
+        T_1 = np.array([[1.0, 0.0, -p1[0, 0]], [0.0, 1.0, -p1[0, 1]], [0.0, 0.0, 1.0]])
+        T_2 = np.array([[1.0, 0.0, -p2[0, 0]], [0.0, 1.0, -p2[0, 1]], [0.0, 0.0, 1.0]])
+        F = T_2.T @ F @ T_1
         inl = info['inliers']
     elif estimator == 'pycolmap':
         opt = poselib_opt_to_pycolmap_opt(opt)
@@ -158,6 +172,7 @@ def main(dataset_path='data/relative', force_opt = {}, dataset_filter=[], method
         'E (poselib)': lambda i: eval_essential_estimator(i, estimator='poselib'),
         'E (COLMAP)': lambda i: eval_essential_estimator(i, estimator='pycolmap'),
         'F (poselib)': lambda i: eval_fundamental_estimator(i, estimator='poselib'),
+        'F+RFC (poselib)': lambda i: eval_fundamental_estimator(i, estimator='poselib_rfc'),
         'F (COLMAP)': lambda i: eval_fundamental_estimator(i, estimator='pycolmap'),
     }
     if len(method_filter) > 0:
